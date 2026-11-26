@@ -1,9 +1,0 @@
--proc:none
--d
-/tmp/out
--Xmaxerrs
-2000
-net/anubis/client/gui/MobileClickGuiScreen.java
-net/anubis/client/gui/GuiLauncher.java
-net/anubis/client/gui/MobileMenuButtons.java
-net/anubis/client/util/Platform.java

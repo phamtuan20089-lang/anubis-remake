@@ -14,13 +14,15 @@ When ImGui is unavailable, Anubis opens `MobileClickGuiScreen`, built only from 
 - Supported: boolean, mode, number, key, color (tap cycles a preset palette), text (tap to edit), action buttons, module keybind and hold mode.
 - Not available yet: block/item/string list editors, the HUD layout editor and profile/theme screens (shown as "(PC only)" or hidden).
 
-## The remaining hard blocker for the original UI: ImGui natives
-The whole UI (ClickGUI, HUD, toasts) is drawn with imgui-java, and the bundled natives are Windows/Linux/macOS desktop builds only. They cannot load on Android (bionic, aarch64).
-You need an Android arm64 build of the imgui-java 1.90.0 JNI library:
-1. Build it from the imgui-java repository with the Android NDK (aarch64).
-2. Name it `libimgui-java64.so` and place it in `<game dir>/config/anubis/natives/`, or start the JVM with `-Dimgui.library.path=<dir>`.
-3. Verify the exact property and file names against the imgui-java 1.90.0 source, since they were not checked in this environment.
-Without it the mod loads but shows no UI. The alternative is rewriting the UI on vanilla widgets, which is a large job.
+## ImGui natives on Android (built automatically)
+The whole UI (ClickGUI, HUD, main menu) is drawn with imgui-java, whose bundled natives are desktop-only.
+The GitHub Actions workflow builds `libimgui-java64.so` for Android arm64 with the NDK
+(`scripts/build-android-natives.sh`) and bundles it in the mod jar under `natives/android-arm64/`.
+At startup on Android the mod extracts it to `<game dir>/config/anubis/natives/` and loads it, so the original
+ClickGUI and main menu appear. If the library is missing or fails to load, Anubis falls back to the vanilla-widget GUI.
+- Check the Actions run: job "ImGui native" must be green; artifact `natives-diagnostics` has the full log.
+- Needs a renderer with OpenGL 3.3 core (MobileGlues, ANGLE, Zink ...). If the UI is black/crashes, try another renderer.
+- The "Anubis" button on the pause and title screens always opens the GUI on Android (no keyboard needed).
 
 ## Using it in Pojav
 - Minecraft 1.21.11 + Fabric Loader 0.19.2+, Fabric API 0.141.2+1.21.11, Java 21 runtime in the launcher.

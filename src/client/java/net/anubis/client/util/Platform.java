@@ -98,14 +98,46 @@ public final class Platform {
         }
         try {
             Path dir = FabricLoader.getInstance().getConfigDir().resolve("anubis").resolve("natives");
-            if (Files.isDirectory(dir)) {
+            Files.createDirectories(dir);
+            extractBundledNative(dir);
+            Path lib = dir.resolve("libimgui-java64.so");
+            if (Files.isRegularFile(lib)) {
                 System.setProperty("imgui.library.path", dir.toAbsolutePath().toString());
                 LOGGER.info("[Anubis] Using ImGui natives from {}", dir);
+                try {
+                    System.load(lib.toAbsolutePath().toString());
+                } catch (Throwable t) {
+                    LOGGER.warn("[Anubis] Could not preload {}: {}", lib, t.toString());
+                }
             } else {
-                LOGGER.warn("[Anubis] Android detected but {} is missing; ImGui UI will be unavailable (see docs/ANDROID.md)", dir);
+                LOGGER.warn("[Anubis] No Android ImGui native found in {}; falling back to the vanilla-widget GUI", dir);
             }
-        } catch (RuntimeException e) {
-            LOGGER.warn("[Anubis] Could not prepare ImGui natives: {}", e.toString());
+        } catch (Throwable t) {
+            LOGGER.warn("[Anubis] Could not prepare ImGui natives: {}", t.toString());
+        }
+    }
+
+    /** Copies the arm64 imgui-java library bundled inside the mod jar (built by CI) next to the config. */
+    private static void extractBundledNative(Path dir) {
+        String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+        if (!arch.contains("aarch64") && !arch.contains("arm64")) {
+            return;
+        }
+        try (java.io.InputStream in = Platform.class.getResourceAsStream("/natives/android-arm64/libimgui-java64.so")) {
+            if (in == null) {
+                return;
+            }
+            Path target = dir.resolve("libimgui-java64.so");
+            Path tmp = dir.resolve("libimgui-java64.so.tmp");
+            Files.copy(in, tmp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            if (!Files.isRegularFile(target) || Files.size(target) != Files.size(tmp)) {
+                Files.move(tmp, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                LOGGER.info("[Anubis] Extracted bundled ImGui native to {}", target);
+            } else {
+                Files.deleteIfExists(tmp);
+            }
+        } catch (Throwable t) {
+            LOGGER.warn("[Anubis] Could not extract bundled ImGui native: {}", t.toString());
         }
     }
 }

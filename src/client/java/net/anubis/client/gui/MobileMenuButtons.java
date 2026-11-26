@@ -1,6 +1,7 @@
 package net.anubis.client.gui;
 
 import net.anubis.client.imgui.ImGuiManager;
+import net.anubis.client.util.Platform;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -18,8 +19,8 @@ public final class MobileMenuButtons {
 
     public static void register() {
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
-            if (!ImGuiManager.getInstance().available() && (screen instanceof PauseScreen || screen instanceof TitleScreen)) {
-                Button button = Button.builder(Component.literal("Anubis"), b -> client.setScreen(new MobileClickGuiScreen()))
+            if ((Platform.isAndroid() || !ImGuiManager.getInstance().available()) && (screen instanceof PauseScreen || screen instanceof TitleScreen)) {
+                Button button = Button.builder(Component.literal("Anubis"), b -> client.setScreen(GuiLauncher.create()))
                     .bounds(6, 6, 80, 20)
                     .build();
                 Screens.getButtons(screen).add(button);
