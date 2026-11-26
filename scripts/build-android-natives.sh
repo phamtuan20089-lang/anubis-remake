@@ -75,12 +75,34 @@ done
 mapfile -t SRCS < <(printf '%s\n' "${SRCS[@]}" | sort -u)
 log "compiling ${#SRCS[@]} files"
 
-INCS=()
+INCS=("-I./imgui-binding/build/jni" "-I./imgui-binding/src/main/native")
 while IFS= read -r d; do INCS+=("-I$d"); done < <(find . -name '*.h' -o -name '*.hpp' | grep -v "/\.git/" | xargs -n1 dirname | sort -u)
+if [ -n "${JAVA_HOME:-}" ] && [ -d "$JAVA_HOME/include" ]; then INCS+=("-I$JAVA_HOME/include" "-I$JAVA_HOME/include/linux"); fi
+log "imconfig.h candidates: $(find . -name imconfig.h | tr '\n' ' ')"
 
-# 3) Compile definitions used by the project's own build scripts (best effort).
+# 3) Compile definitions: ONLY from the xml files jnigen generated for this project.
 DEFS=()
-while IFS= read -r d; do DEFS+=("$d"); done < <(grep -rhoE -- '-D(IMGUI|IM_|ImGui|IMPLOT|IMNODES|IMGUIZMO|NODE_EDITOR)[A-Za-z0-9_]*(=[^"'"'"' <>]*)?' --include='build*.xml' . 2>/dev/null | sort -u)
+JNI_DIR="imgui-binding/build/jni"
+log "jnigen build files: $(ls "$JNI_DIR"/build*.xml 2>/dev/null | tr '\n' ' ')"
+if ls "$JNI_DIR"/build*.xml >/dev/null 2>&1; then
+  while IFS= read -r d; do DEFS+=("$d"); done < <(python3 - "$JNI_DIR"/build*.xml <<'PY'
+import re, sys, html
+seen = set()
+for path in sys.argv[1:]:
+    t = html.unescape(open(path, errors="ignore").read())
+    for m in re.findall(r'-D[A-Za-z_][A-Za-z0-9_]*(?:=[^\s"<>)(]*)?', t):
+        name = m[2:].split("=")[0]
+        if re.search(r'USER_CONFIG|IMPL|FREETYPE|DAWN|EXTERNAL|SKIP_HEADERS|CUSTOM_NUMERIC', name):
+            continue
+        if not re.match(r'(IMGUI|IM_|IMPLOT|IMNODES|IMGUIZMO|NODE_EDITOR)', name):
+            continue
+        if m.endswith("=") or m.endswith("\\"):
+            continue
+        if m not in seen:
+            seen.add(m); print(m)
+PY
+)
+fi
 log "extra defines: ${DEFS[*]:-none}"
 
 NDK="${ANDROID_NDK_HOME:-${ANDROID_NDK_LATEST_HOME:-${ANDROID_NDK_ROOT:-}}}"
